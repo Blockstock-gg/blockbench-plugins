@@ -1,13 +1,7 @@
 (function () {
-
+  const path = require('path');
+  
   var DEBUG_MODE = true;
-
-  var button;
-
-  var preview;
-  var model;
-  var texture;
-
   var debug_data = {
     model_path: 'C:/Users/Domas/AppData/Local/Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang/minecraftWorlds/ZooTycoon/resource_packs/0/models/entity/elephant.geo.json',
     texture_path: 'C:/Users/Domas/AppData/Local/Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang/minecraftWorlds/ZooTycoon/resource_packs/0/textures/entity/elephant.png',
@@ -15,24 +9,23 @@
     name: 'Elephant'    
   }
 
+  var button;
+  var preview;
+  var img_data = [];
   var home_path = require('os').homedir();
-  const path = require('path');
-
   var config = {
     width: 1440,
     height: 1080,
     export_path: path.join(home_path, 'Downloads')
   };
 
-  let progressObj = {
+  var progressObj = {
     value: 0,
     add(addition) {
       addition == 0 ? this.value = addition : this.value = this.value + addition;
       Blockbench.setProgress(this.value);
     }
   }
-
-  var img_data = [];
 
   Plugin.register('blockstock_packager', {
     title: 'Blockstock Packager',
@@ -162,30 +155,10 @@
         }
       },
       onCancel: function (formData) {
-        console.log(Blockbench);
         this.hide();
       }
     });
     return dialog;
-  }
-
-  function setCenter() {
-    let center = new THREE.Vector3().fromArray(getSelectionCenter());
-    center.add(scene.position);
-    let difference = new THREE.Vector3().copy(preview.controls.target).sub(center);
-    difference.divideScalar(1);
-
-    let i = 0;
-    let interval = setInterval(() => {
-      preview.controls.target.sub(difference);
-
-      if (preview.angle != null) {
-        preview.camera.position.sub(difference);
-      }
-      i++;
-      if (i == 1) clearInterval(interval);
-
-    }, 16.66)
   }
 
   function captureScreenshot(formData, BBox) {
@@ -193,7 +166,7 @@
     return new Promise( async (resolve, reject) => {
       if (DEBUG_MODE) console.log('start: captureScreenshot');
 
-      var maxValue = array => {
+      let maxValue = array => {
         let max = 0;
         array.forEach(element => {
           if (element > max) max = element;
@@ -201,11 +174,11 @@
         return max;
       }
 
-      var targetPos = [(BBox.minXYZ[0] + BBox.maxXYZ[0]) / 2, (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2, (BBox.minXYZ[2] + BBox.maxXYZ[2]) / 2];
-      var distBuffer = 15;
-      var cameraAxisDist = maxValue(BBox.maxXYZ) + distBuffer
+      let targetPos = [(BBox.minXYZ[0] + BBox.maxXYZ[0]) / 2, (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2, (BBox.minXYZ[2] + BBox.maxXYZ[2]) / 2];
+      let distBuffer = 15;
+      let cameraAxisDist = maxValue(BBox.maxXYZ) + distBuffer
 
-      var camera_pos = [
+      let camera_pos = [
         [-cameraAxisDist, cameraAxisDist, -cameraAxisDist], 
         [cameraAxisDist, cameraAxisDist, -cameraAxisDist], 
         [cameraAxisDist, cameraAxisDist, cameraAxisDist], 
@@ -216,7 +189,7 @@
 
       for (const pos of camera_pos) {
 
-        var preset = {
+        let preset = {
           name: 'test',
           id: "test_id",
           projection: 'perspective',
@@ -227,11 +200,7 @@
 
         Preview.selected.loadAnglePreset(preset);
 
-        // setCenter();
-        // console.log(preview.camera.position);
-        // Canvas.updateLayeredTextures();
-
-        var options = {
+        let options = {
           crop: false,
           width: config.width,
           height: config.height
@@ -249,7 +218,7 @@
         }
 
         const img = await takeScreenshot(options).catch(console.error);
-        var base64Image = img.split(';base64,').pop();
+        let base64Image = img.split(';base64,').pop();
         img_data.push(base64Image);
         progressObj.add(0.2)
       }
@@ -263,26 +232,17 @@
     return new Promise( async (resolve, reject) => {
       if (DEBUG_MODE) console.log('start: writeFiles');
 
-      var base_asset_path = path.join(config.export_path, formData.name)
-      var previews_asset_path = path.join(base_asset_path)
-      var model_asset_path = path.join(base_asset_path)
-      var texture_asset_path = path.join(base_asset_path)
-      var animation_asset_path = path.join(base_asset_path)
+      let base_asset_path = path.join(config.export_path, formData.name)
+      let previews_asset_path = path.join(base_asset_path)
+      let model_asset_path = path.join(base_asset_path)
+      let texture_asset_path = path.join(base_asset_path)
+      let animation_asset_path = path.join(base_asset_path)
 
-      var lowerCaseName = formData.name.toLowerCase();
+      let lowerCaseName = formData.name.toLowerCase();
 
       fs.mkdirSync(base_asset_path, { recursive: true }, (err) => {
         if (err) console.error(err);
       });
-      // fs.mkdirSync(previews_asset_path, { recursive: true }, (err) => {
-      //   if (err) console.error(err);
-      // });
-      // fs.mkdirSync(model_asset_path, { recursive: true }, (err) => {
-      //   if (err) console.error(err);
-      // });
-      // fs.mkdirSync(texture_asset_path, { recursive: true }, (err) => {
-      //   if (err) console.error(err);
-      // });
 
       let asset = {
         name: formData.name,
@@ -310,7 +270,7 @@
 
 
       // Write screenshot images
-      var img_num = 0
+      let img_num = 0
       for (const img of img_data) {
 
         let num = img_num
@@ -399,8 +359,8 @@
   }
 
   function getBoundingBox() {
-    var minXYZ = [0, 0, 0];
-    var maxXYZ = [0, 0, 0];
+    let minXYZ = [0, 0, 0];
+    let maxXYZ = [0, 0, 0];
     for (const cube of Cube.all) {
       if (cube.from[0] < minXYZ[0]) minXYZ[0] = cube.from[0];
       if (cube.from[1] < minXYZ[1]) minXYZ[1] = cube.from[1];
@@ -424,6 +384,9 @@
       return false
     }
     if (!fs.existsSync(formData.texture)){
+      return false
+    }
+    if (!formData.tag_animals && !formData.tag_vehicles && !formData.tag_creatures && !formData.tag_electronics && !formData.tag_food && !formData.tag_furniture && !formData.tag_nature && !formData.tag_people && !formData.tag_items && !formData.tag_decoration) {
       return false
     }
     return true
