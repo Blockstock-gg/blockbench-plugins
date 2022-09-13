@@ -68,6 +68,15 @@
 		"icon": "web",
 		"variant": "both"
 	},
+  "blockstock_packager": {
+    "title": "Blockstock Packager",
+    "author": "Blockstock",
+    "description": "This plugin can package a model for Blockstock",
+    "icon": "fa-box",
+    "about": "This plugin packages Minecraft Bedrock model into a folder that can be quickly uploaded to Blockstock as a vendor.",
+    "tags": ["Minecraft: Bedrock Edition"],
+    "variant": "desktop"
+  },
 	"plaster": {
 		"title": "Plaster",
 		"author": "JannisX11",

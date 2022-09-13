@@ -31,14 +31,17 @@
     title: 'Blockstock Packager',
     author: 'Blockstock',
     description: 'This plugin can package a model for Blockstock',
-    icon: 'bar_chart',
+    icon: 'fa-box',
     version: '0.0.1',
     variant: 'desktop',
+    about:
+      "This plugin packages Minecraft Bedrock model into a folder that can be quickly uploaded to Blockstock as a vendor.",
+    tags: ["Minecraft: Bedrock Edition"],
     onload() {
       button = new Action('package_blockstock', {
         name: 'Package for Blockstock',
         description: 'Package',
-        icon: 'bar_chart',
+        icon: 'fa-box',
         click: function () {
           MainDialog().show()
         }
