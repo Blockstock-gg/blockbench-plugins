@@ -2,18 +2,14 @@
   const path = require('path');
   
   var DEBUG_MODE = true;
-  var debug_data = {
-    model_path: 'C:/Users/Domas/AppData/Local/Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang/minecraftWorlds/ZooTycoon/resource_packs/0/models/entity/elephant.geo.json',
-    texture_path: 'C:/Users/Domas/AppData/Local/Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang/minecraftWorlds/ZooTycoon/resource_packs/0/textures/entity/elephant.png',
-    anim_path: 'C:/Users/Domas/AppData/Local/Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang/minecraftWorlds/ZooTycoon/resource_packs/0/animations/elephant.animations.json',
-    name: 'Elephant'    
-  }
-
-  var button;
+  var btn_submenu;
+  var btn_package_1;
+  var btn_package_2;
   var preview;
   var img_data = [];
   var home_path = require('os').homedir();
   var config = {
+    plugin_version: '0.0.2',
     width: 1440,
     height: 1080,
     export_path: path.join(home_path, 'Downloads')
@@ -32,24 +28,39 @@
     author: 'Blockstock',
     description: 'This plugin can package a model for Blockstock',
     icon: 'fa-box',
-    version: '0.0.1',
+    version: config.plugin_version,
     variant: 'desktop',
-    about:
-      "This plugin packages Minecraft Bedrock model into a folder that can be quickly uploaded to Blockstock as a vendor.",
+    about: "This plugin packages Minecraft Bedrock model into a folder that can be quickly uploaded to Blockstock as a vendor.",
     tags: ["Minecraft: Bedrock Edition"],
     onload() {
-      button = new Action('package_blockstock', {
-        name: 'Package for Blockstock',
+      btn_package_1 = new Action('package_other_blockstock', {
+        name: 'Package Other Model',
         description: 'Package',
         icon: 'fa-box',
         click: function () {
           MainDialog().show()
         }
       });
-      MenuBar.addAction(button, 'filter');
+      btn_package_2 = new Action('package_current_blockstock', {
+        name: 'Package Current Model',
+        description: 'Package',
+        icon: 'fa-box',
+        click: function () {
+          PackageCurrentDialog().show()
+        }
+      });
+      btn_submenu = new Action('open_blockstock_menu', {
+        children: [btn_package_2],
+        name: 'Blockstock',
+        description: 'Menu',
+        icon: 'fa-box'
+      });
+      MenuBar.addAction(btn_submenu, 'filter');
     },
     onunload() {
-      button.delete();
+      btn_package_1.delete()
+      btn_package_2.delete()
+      btn_submenu.delete()
     }
   });
 
@@ -67,26 +78,22 @@
         model: {
             label: 'Model',
             type: 'file',
-            extensions:['json'],
-            value: debug_data.model_path
+            extensions:['json']
         },
         texture:{
             label: 'Model texture',
             type: 'file',
-            extensions:['png'],
-            value: debug_data.texture_path
+            extensions:['png']
         },
         animations:{
             label: '[Optional] Model animations',
             type: 'file',
-            extensions:['json'],
-            value: debug_data.anim_path
+            extensions:['json']
         },
         name: {
           label: 'Name',
           type: 'text',
-          placeholder: 'test',
-          value: debug_data.name
+          placeholder: 'Model name'
         },
         price: {
           label: 'Price (EUR)',
@@ -143,16 +150,116 @@
       },
       onConfirm: async function (formData) {
         // debugger;
-        if (validateInput(formData)){
+        if (validateInput(formData,'other')){
           this.hide();
           await loadModel(formData)
-          progressObj.add(0.1)
           const BBox = getBoundingBox()
           await captureScreenshot(formData, BBox);
           await writeFiles(formData)
-          progressObj.add(0.1)
           Blockbench.notification('Blockstock Exporter', 'Finished packaging');
-          progressObj.add(0)
+        } else {
+          Blockbench.showQuickMessage("Invalid input data")
+        }
+      },
+      onCancel: function (formData) {
+        this.hide();
+      }
+    });
+    return dialog;
+  }
+
+  function PackageCurrentDialog() {
+    preview = Preview.selected;
+    var dialog = new Dialog({
+      id: 'blockstock_exporter_current',
+      title: 'Blockstock', 
+      form: {
+        export_path: {
+            label: 'Export Path',
+            type: 'folder',
+            value: config.export_path
+        },
+        name: {
+          label: 'Name',
+          type: 'text',
+          placeholder: 'Model name',
+        },
+        price: {
+          label: 'Price (EUR)',
+          type: 'number',
+          min: 1,
+          value: 1
+        },
+        include_animations: {
+          label: 'Include animations',
+          type: 'checkbox'
+        },
+        price_anim: {
+          label: '[Optional] Animation price (EUR)',
+          type: 'number',
+          min: 0,
+          value: 0,
+        },
+        tag_animals: {
+          label: 'Animals',
+          type: 'checkbox'
+        },
+        tag_vehicles: {
+          label: 'Cars & Vehicles',
+          type: 'checkbox'
+        },
+        tag_creatures: {
+          label: 'Creatures',
+          type: 'checkbox'
+        },
+        tag_electronics: {
+          label: 'Electronics & Technology',
+          type: 'checkbox'
+        },
+        tag_food: {
+          label: 'Food & Drinks',
+          type: 'checkbox'
+        },
+        tag_furniture: {
+          label: 'Furniture',
+          type: 'checkbox'
+        },
+        tag_nature: {
+          label: 'Nature',
+          type: 'checkbox'
+        },
+        tag_people: {
+          label: 'People',
+          type: 'checkbox'
+        },
+        tag_items: {
+          label: 'Items',
+          type: 'checkbox'
+        },
+        tag_decoration: {
+          label: 'Decoration',
+          type: 'checkbox'
+        }
+      },
+      onConfirm: async function (formData) {
+        if (Project == 0) {
+          Blockbench.showQuickMessage("No open project"); 
+          return;
+        }
+        if (Project.textures.length == 0) {
+          Blockbench.showQuickMessage("No Texture"); 
+          return;
+        }
+        if (Cube.all.length == 0) {
+          Blockbench.showQuickMessage("No Cubes");
+          return;
+        }
+        if (validateInput(formData, 'current')){
+          if (Project.selected_texture === null || Project.selected_texture === undefined) Project.textures[0].select()
+          const BBox = getBoundingBox()
+          await captureScreenshot(formData, BBox);
+          await writeFiles(formData);
+          Blockbench.notification('Blockstock Exporter', 'Finished packaging');
         } else {
           Blockbench.showQuickMessage("Invalid input data")
         }
@@ -165,21 +272,36 @@
   }
 
   function captureScreenshot(formData, BBox) {
-
     return new Promise( async (resolve, reject) => {
       if (DEBUG_MODE) console.log('start: captureScreenshot');
 
-      let maxValue = array => {
-        let max = 0;
-        array.forEach(element => {
-          if (element > max) max = element;
-        });
-        return max;
+      const takeScreenshot = async (options) => {
+        return new Promise( (resolve, reject) => {
+          preview.screenshot(options, (img) => {
+            if (!img) {
+              return reject('error while capturing screenshot');
+            }
+            resolve(img);
+          });
+        })
+      }
+
+      const maxValue = (...array) => {
+        let arr = [].concat(...array)
+        // array.forEach(element => {
+        //   if (element > max) max = element;
+        // });
+        return arr.reduce((max, val) => Math.abs(val) > max ? max = Math.abs(val) : max)
       }
 
       let targetPos = [(BBox.minXYZ[0] + BBox.maxXYZ[0]) / 2, (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2, (BBox.minXYZ[2] + BBox.maxXYZ[2]) / 2];
-      let distBuffer = 15;
-      let cameraAxisDist = maxValue(BBox.maxXYZ) + distBuffer
+      let targetPos2 = getCenterPoint();
+      let distMultiplier = 1.4;
+      let cameraAxisDist = maxValue(BBox.maxXYZ, BBox.minXYZ) * distMultiplier;
+      let cameraHeight = (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2 + cameraAxisDist;
+      console.log(cameraAxisDist);
+
+      if (DEBUG_MODE) console.log(`Camera target pos: ${targetPos}`);
 
       let camera_pos = [
         [-cameraAxisDist, cameraAxisDist, -cameraAxisDist], 
@@ -188,42 +310,37 @@
         [-cameraAxisDist, cameraAxisDist, cameraAxisDist],
       ];
 
-      if (DEBUG_MODE) console.log(cameraAxisDist);
+      let options = {
+        crop: false,
+        width: config.width,
+        height: config.height
+      };
 
-      for (const pos of camera_pos) {
+      let tex_num = 0;
+      let pos_num = 1;
+      for (const tex of Project.textures) {
+        tex.select();
+        pos_num = 1;
+        for (const pos of camera_pos) {
 
-        let preset = {
-          name: 'test',
-          id: "test_id",
-          projection: 'perspective',
-          position: pos,
-          target: targetPos,
-          zoom: 1
-        };
+          let preset = {
+            name: 'blockstock_packager',
+            id: `blockstock_packager_${pos_num}`,
+            projection: 'perspective',
+            position: pos,
+            target: targetPos,
+            zoom: 0.1
+          };
 
-        Preview.selected.loadAnglePreset(preset);
+          Preview.selected.loadAnglePreset(preset);
 
-        let options = {
-          crop: false,
-          width: config.width,
-          height: config.height
-        };
-
-        const takeScreenshot = async (options) => {
-          return new Promise( (resolve, reject) => {
-            preview.screenshot(options, (img) => {
-              if (!img) {
-                return reject('error while capturing screenshot');
-              }
-              resolve(img);
-            });
-          })
+          const img = await takeScreenshot(options).catch(console.error);
+          let base64Image = img.split(';base64,').pop();
+          if (tex_num === 0) img_data.push({num: `${pos_num}` , data: base64Image});
+          else img_data.push({num: `${pos_num}_${tex_num}` , data: base64Image});
+          pos_num++;
         }
-
-        const img = await takeScreenshot(options).catch(console.error);
-        let base64Image = img.split(';base64,').pop();
-        img_data.push(base64Image);
-        progressObj.add(0.2)
+        tex_num++;
       }
       if (DEBUG_MODE) console.log('end: captureScreenshot');
       return resolve()
@@ -235,7 +352,7 @@
     return new Promise( async (resolve, reject) => {
       if (DEBUG_MODE) console.log('start: writeFiles');
 
-      let base_asset_path = path.join(config.export_path, formData.name)
+      let base_asset_path = path.join(formData.export_path, formData.name)
       let previews_asset_path = path.join(base_asset_path)
       let model_asset_path = path.join(base_asset_path)
       let texture_asset_path = path.join(base_asset_path)
@@ -243,18 +360,19 @@
 
       let lowerCaseName = formData.name.toLowerCase();
 
-      fs.mkdirSync(base_asset_path, { recursive: true }, (err) => {
+      fs.mkdirSync(previews_asset_path, { recursive: true }, (err) => {
         if (err) console.error(err);
       });
 
       let asset = {
+        plugin_version: config.plugin_version,
         name: formData.name,
         price: formData.price,
         price_anim: formData.price_anim,
-        type: 'Bedrock',
+        mc_type: 'Bedrock',
         local_anim_path: '',
         local_model_path: '',
-        local_texture_path: '',
+        local_texture_paths: [],
         local_preview_paths: [],
         tags: [],
       }
@@ -273,37 +391,39 @@
 
 
       // Write screenshot images
-      let img_num = 0
       for (const img of img_data) {
 
-        let num = img_num
-        let full_preview_path = path.join(previews_asset_path, (lowerCaseName  + "_img" + num + ".webp"))
+        let full_preview_path = path.join(previews_asset_path, ("preview_img" + img.num + ".webp"))
 
-        fs.writeFileSync(full_preview_path, img, { encoding: 'base64' }, (err) => {
+        fs.writeFileSync(full_preview_path, img.data, { encoding: 'base64' }, (err) => {
           if (err) console.error(err);
         });
-        asset.local_preview_paths.push(path.basename(full_preview_path))
+        asset.local_preview_paths.push(path.relative(base_asset_path,full_preview_path))
         if (DEBUG_MODE) console.log("Written " + full_preview_path);
 
-        img_num++;
       }
 
       img_data = [];
 
       // Write model file 
-      fs.writeFileSync(path.join(model_asset_path, (lowerCaseName + ".geo.json")) , this.model[0].content, {}, (err) => {
+      fs.writeFileSync(path.join(model_asset_path, (lowerCaseName + ".geo.json")) , Project.format.codec.compile(), {}, (err) => {
         if (err) console.error(err);
       });
       asset.local_model_path = (lowerCaseName + ".geo.json")
       if (DEBUG_MODE) console.log("Written " + path.join(model_asset_path, (lowerCaseName + ".geo.json")));
 
-      // Write texture file 
-      fs.writeFileSync(path.join(texture_asset_path, (lowerCaseName + ".png")) , this.texture.getBase64(), { encoding: 'base64' }, (err) => {
-        if (err) console.error(err);
-      });
-
-      asset.local_texture_path = (lowerCaseName + ".png")
-      if (DEBUG_MODE) console.log("Written " + path.join(texture_asset_path, (lowerCaseName + ".png")) );
+      // Write texture files
+      let tex_num = '';
+      Project.textures.length > 1 ? tex_num = 0 : tex_num = '';
+      for (const tex of Project.textures) {
+        fs.writeFileSync(path.join(texture_asset_path, (lowerCaseName + tex_num + ".png")) , tex.getBase64(), { encoding: 'base64' }, (err) => {
+          if (err) console.error(err);
+        });
+        
+        asset.local_texture_paths.push((lowerCaseName + tex_num + ".png"))
+        if (tex_num !== '') tex_num += 1;
+        if (DEBUG_MODE) console.log("Written " + path.join(texture_asset_path, (lowerCaseName + ".png")) );
+      }
 
       // Copy over animation file
       if(fs.existsSync(formData.animations)){
@@ -313,6 +433,23 @@
   
         asset.local_anim_path = (lowerCaseName + ".animation.json")
         if (DEBUG_MODE) console.log("Written " + path.join(texture_asset_path, (lowerCaseName + ".animation.json")) );
+      }
+
+      // Write animation file 
+      if(Project.animations.length != 0 && formData.include_animations) {
+        let keys = [];
+        let animations = Animation.all.slice()
+        if (Format.animation_files) animations.sort((a1, a2) => a1.path.hashCode() - a2.path.hashCode())
+        animations.forEach(animation => {
+          keys.push(animation.name);
+        })
+        let content = Animator.buildFile(null, keys)
+
+        fs.writeFileSync(path.join(model_asset_path, (lowerCaseName + ".animation.json")) , autoStringify(content), {}, (err) => {
+          if (err) console.error(err);
+        });
+        asset.local_anim_path = (lowerCaseName + ".animation.json")
+        if (DEBUG_MODE) console.log("Written " + path.join(model_asset_path, (lowerCaseName + ".animation.json")));
       }
 
       // Write metadata
@@ -352,6 +489,7 @@
 
       this.texture = new Texture().fromPath(formData.texture).add(false).fillParticle();
       Canvas.updateLayeredTextures();
+      if (Project.selected_texture === null || Project.selected_texture === undefined) Project.textures[0].select()
       if (DEBUG_MODE) console.log(this.texture);
       setTimeout(() => {
         if (DEBUG_MODE) console.log('end: loadModel');
@@ -364,7 +502,14 @@
   function getBoundingBox() {
     let minXYZ = [0, 0, 0];
     let maxXYZ = [0, 0, 0];
+    let cubeCount = 0;
+    if (DEBUG_MODE) console.log(Cube.all[0]);
     for (const cube of Cube.all) {
+      if (!cube.visibility) continue;
+      cubeCount++;
+      // cube.select();
+      // console.log(cube.from);
+      // console.log(cube.to);
       if (cube.from[0] < minXYZ[0]) minXYZ[0] = cube.from[0];
       if (cube.from[1] < minXYZ[1]) minXYZ[1] = cube.from[1];
       if (cube.from[2] < minXYZ[2]) minXYZ[2] = cube.from[2];
@@ -379,14 +524,44 @@
     return {minXYZ, maxXYZ}
   }
 
-  function validateInput(formData) {
+  function getCenterPoint() {
+    let fromXYZ = [0, 0, 0];
+    let toXYZ = [0, 0, 0];
+    let centerXYZ = [0, 0, 0];
+    let cubeCount = 0;
+    if (DEBUG_MODE) console.log(Cube.all[0]);
+    for (const cube of Cube.all) {
+      if (!cube.visibility) continue;
+      cubeCount++;
+      fromXYZ[0] += cube.from[0];
+      fromXYZ[1] += cube.from[1];
+      fromXYZ[2] += cube.from[2];
+      
+      toXYZ[0] += cube.to[0];
+      toXYZ[1] += cube.to[1];
+      toXYZ[2] += cube.to[2];
+    }
+    
+    fromXYZ = fromXYZ.map(i => i / cubeCount);
+    toXYZ = toXYZ.map(i => i / cubeCount);
+
+    centerXYZ = [(toXYZ[0] - fromXYZ[0]) / 2, (toXYZ[1] - fromXYZ[1]) / 2, (toXYZ[2] - fromXYZ[2]) / 2];
+
+    if (DEBUG_MODE) console.log(centerXYZ);
+
+    return centerXYZ
+  }
+
+  function validateInput(formData, packageType) {
+    if (packageType === 'other') {
+      if (!fs.existsSync(formData.model)){
+        return false
+      }
+      if (!fs.existsSync(formData.texture)){
+        return false
+      }
+    }
     if (typeof formData.name === 'underfined' || formData.name === ""){
-      return false
-    }
-    if (!fs.existsSync(formData.model)){
-      return false
-    }
-    if (!fs.existsSync(formData.texture)){
       return false
     }
     if (!formData.tag_animals && !formData.tag_vehicles && !formData.tag_creatures && !formData.tag_electronics && !formData.tag_food && !formData.tag_furniture && !formData.tag_nature && !formData.tag_people && !formData.tag_items && !formData.tag_decoration) {
