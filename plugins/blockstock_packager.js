@@ -9,7 +9,7 @@
   var img_data = [];
   var home_path = require('os').homedir();
   var config = {
-    plugin_version: '0.0.2',
+    plugin_version: '1.0.0',
     width: 1440,
     height: 1080,
     export_path: path.join(home_path, 'Downloads')
