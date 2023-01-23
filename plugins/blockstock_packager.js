@@ -1,7 +1,7 @@
 (function () {
   const path = require('path');
   
-  var DEBUG_MODE = true;
+  var DEBUG_MODE = false;
   var btn_submenu;
   var btn_package_1;
   var btn_package_2;
@@ -239,6 +239,17 @@
         tag_decoration: {
           label: 'Decoration',
           type: 'checkbox'
+        },
+        dist_multiplier: {
+          label: 'Camera distance multiplier',
+          type: 'number',
+          min: 1,
+          step: 0.1,
+          value: 1.2,
+        },
+        use_root_origin: {
+          label: 'Use root pivot point',
+          type: 'checkbox'
         }
       },
       onConfirm: async function (formData) {
@@ -294,13 +305,17 @@
         return arr.reduce((max, val) => Math.abs(val) > max ? max = Math.abs(val) : max)
       }
 
-      let targetPos = [(BBox.minXYZ[0] + BBox.maxXYZ[0]) / 2, (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2, (BBox.minXYZ[2] + BBox.maxXYZ[2]) / 2];
+      if (formData.use_root_origin) {
+        var targetPos = Group.all[0].origin
+      } else {
+        var targetPos = [(BBox.minXYZ[0] + BBox.maxXYZ[0]) / 2, (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2, (BBox.minXYZ[2] + BBox.maxXYZ[2]) / 2];
+      }
       let targetPos2 = getCenterPoint();
-      let distMultiplier = 1.4;
-      let cameraAxisDist = maxValue(BBox.maxXYZ, BBox.minXYZ) * distMultiplier;
+      let distMultiplier = 1.2;
+      let cameraAxisDist = maxValue(BBox.maxXYZ, BBox.minXYZ) * formData.dist_multiplier;
       let cameraHeight = (BBox.minXYZ[1] + BBox.maxXYZ[1]) / 2 + cameraAxisDist;
-      console.log(cameraAxisDist);
 
+      if (DEBUG_MODE) console.log(`Camera distance to target: ${cameraAxisDist}`);
       if (DEBUG_MODE) console.log(`Camera target pos: ${targetPos}`);
 
       let camera_pos = [
@@ -334,7 +349,7 @@
 
           Preview.selected.loadAnglePreset(preset);
 
-          const img = await takeScreenshot(options).catch(console.error);
+          const img = await takeScreenshot(options).catch((err) => reject(err));
           let base64Image = img.split(';base64,').pop();
           if (tex_num === 0) img_data.push({num: `${pos_num}` , data: base64Image});
           else img_data.push({num: `${pos_num}_${tex_num}` , data: base64Image});
@@ -352,15 +367,16 @@
     return new Promise( async (resolve, reject) => {
       if (DEBUG_MODE) console.log('start: writeFiles');
 
-      let base_asset_path = path.join(formData.export_path, formData.name)
+      let formatedName = formData.name.trim().replace(/\s+/g, '_').toLowerCase();
+      let base_asset_path = path.join(formData.export_path, formatedName)
       let previews_asset_path = path.join(base_asset_path)
       let model_asset_path = path.join(base_asset_path)
       let texture_asset_path = path.join(base_asset_path)
       let animation_asset_path = path.join(base_asset_path)
 
-      let lowerCaseName = formData.name.toLowerCase();
+      let lowerCaseName = formatedName.toLowerCase();
 
-      fs.mkdirSync(previews_asset_path, { recursive: true }, (err) => {
+      fs.mkdirSync(previews_asset_path, { recursive: true }, (err) => { 
         if (err) console.error(err);
       });
 
@@ -519,7 +535,7 @@
       if (cube.to[2] > maxXYZ[2]) maxXYZ[2] = cube.to[2];
     }
 
-    if (DEBUG_MODE) console.log({minXYZ, maxXYZ});
+    // if (DEBUG_MODE) console.log({minXYZ, maxXYZ});
 
     return {minXYZ, maxXYZ}
   }
@@ -529,7 +545,7 @@
     let toXYZ = [0, 0, 0];
     let centerXYZ = [0, 0, 0];
     let cubeCount = 0;
-    if (DEBUG_MODE) console.log(Cube.all[0]);
+    // if (DEBUG_MODE) console.log(Group.all);
     for (const cube of Cube.all) {
       if (!cube.visibility) continue;
       cubeCount++;
@@ -547,7 +563,7 @@
 
     centerXYZ = [(toXYZ[0] - fromXYZ[0]) / 2, (toXYZ[1] - fromXYZ[1]) / 2, (toXYZ[2] - fromXYZ[2]) / 2];
 
-    if (DEBUG_MODE) console.log(centerXYZ);
+    // if (DEBUG_MODE) console.log(centerXYZ);
 
     return centerXYZ
   }
